@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rays data stack: current state</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F3F6FA; --surface:#FFFFFF; --ink:#0E1E33; --muted:#53627A; --faint:#8A97AB; --line:#DCE3EC;
+  --navy:#0B2A55; --navy-2:#123A70; --columbia:#8FBCE6; --sun:#F5D130;
+  --ok:#2C8A6B; --ok-bg:#E3F3EC; --watch:#B97E10; --watch-bg:#FBF0D6; --risk:#C23B34; --risk-bg:#FBE3E1; --unk:#7D889A; --unk-bg:#ECEFF3;
+  --board-ink:#F4F7FB;
+  color-scheme: light;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0A1424; --surface:#111F35; --ink:#E8EEF6; --muted:#A3B1C6; --faint:#71809A; --line:#22324C;
+    --navy:#061A36; --navy-2:#0D2A52; --columbia:#8FBCE6;
+    --ok:#4CC29A; --ok-bg:#12352B; --watch:#E5B243; --watch-bg:#3A2D10; --risk:#EF6A61; --risk-bg:#3E1B1A; --unk:#9AA6B8; --unk-bg:#1E2B40;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0A1424; --surface:#111F35; --ink:#E8EEF6; --muted:#A3B1C6; --faint:#71809A; --line:#22324C;
+  --navy:#061A36; --navy-2:#0D2A52; --columbia:#8FBCE6;
+  --ok:#4CC29A; --ok-bg:#12352B; --watch:#E5B243; --watch-bg:#3A2D10; --risk:#EF6A61; --risk-bg:#3E1B1A; --unk:#9AA6B8; --unk-bg:#1E2B40;
+  color-scheme: dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Public Sans",system-ui,-apple-system,"Segoe UI",Arial,sans-serif;font-size:16px;line-height:1.55}
+.wrap{max-width:1120px;margin:0 auto;padding:0 20px}
+h1,h2,h3{font-family:"Barlow Condensed","Arial Narrow",Arial,sans-serif;font-weight:600;letter-spacing:.2px;margin:0}
+h2{font-size:34px;line-height:1.1;margin-bottom:6px}
+h3{font-size:22px;line-height:1.15;margin-bottom:4px}
+p{margin:0 0 12px;max-width:72ch}
+.lede{color:var(--muted);font-size:17px}
+section{padding:56px 0 8px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:22px}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.note{font-size:13px;color:var(--faint);margin-top:10px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:14px;color:var(--muted);margin:12px 0 0}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:12px;height:12px;border-radius:3px;display:inline-block}
+.ok{--c:var(--ok);--cb:var(--ok-bg)} .watch{--c:var(--watch);--cb:var(--watch-bg)} .risk{--c:var(--risk);--cb:var(--risk-bg)} .unk{--c:var(--unk);--cb:var(--unk-bg)}
+.pill{display:inline-block;font-size:13px;font-weight:600;padding:2px 9px;border-radius:999px;background:var(--cb);color:var(--c);white-space:nowrap}
+/* hero */
+.hero{background:var(--navy);color:var(--board-ink);padding:48px 0 44px}
+.hero h1{font-size:clamp(40px,6vw,64px);line-height:1;margin-bottom:12px;font-weight:700}
+.hero p{color:#C9D7EA;font-size:17px}
+.board{margin-top:28px;border:2px solid #2B4C7E;border-radius:10px;overflow:hidden;background:var(--navy-2)}
+.board table{width:100%;border-collapse:collapse;font-family:"Barlow Condensed","Arial Narrow",Arial,sans-serif;min-width:560px}
+.board th{font-weight:600;font-size:16px;color:var(--columbia);text-align:center;padding:10px 8px;border-bottom:2px solid #2B4C7E}
+.board th:first-child,.board td:first-child{text-align:left;padding-left:18px}
+.board td{font-size:30px;font-weight:600;text-align:center;padding:6px 8px;border-bottom:1px solid #1F3E6B;color:var(--board-ink)}
+.board td:first-child{font-size:20px;font-weight:500;color:#DCE7F5}
+.board td.z{color:#4F6A91}
+.board td.b{color:#FF8A80}
+.board tr.tot td{color:var(--sun);border-bottom:0;background:#0A2349}
+.board td.t{border-left:2px solid #2B4C7E;color:var(--sun)}
+.kicker{display:flex;flex-wrap:wrap;gap:22px;margin-top:22px;color:#C9D7EA;font-size:15px}
+.kicker b{font-family:"Barlow Condensed",Arial,sans-serif;font-size:26px;color:#fff;font-weight:600;display:block;line-height:1}
+/* bars */
+.hbar{display:grid;grid-template-columns:minmax(120px,210px) 1fr auto;gap:10px;align-items:center;margin:7px 0;font-size:14px}
+.hbar .lab{color:var(--ink)}
+.hbar .track{height:18px;background:var(--unk-bg);border-radius:4px;overflow:hidden;display:flex}
+.hbar .seg{height:100%}
+.hbar .val{font-variant-numeric:tabular-nums;color:var(--muted);min-width:44px;text-align:right}
+.lite{opacity:.5}.bi{background:repeating-linear-gradient(45deg,var(--line) 0 4px,transparent 4px 8px)!important}
+/* timeline */
+svg text{font-family:"Public Sans",Arial,sans-serif;fill:var(--muted)}
+svg .lbl{fill:var(--ink);font-size:13px}
+svg .ax{font-size:12px;fill:var(--faint)}
+svg .grp{font-family:"Barlow Condensed",Arial,sans-serif;font-size:16px;font-weight:600;fill:var(--ink)}
+/* tiles */
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.tile{border:1px solid var(--line);border-left:4px solid var(--c);border-radius:8px;padding:10px 12px;background:var(--surface)}
+.tile .n{font-weight:600;font-size:14px}
+.tile .m{font-size:13px;color:var(--muted)}
+.waffle{display:flex;flex-wrap:wrap;gap:2px;max-width:100%}
+.waffle i{width:9px;height:9px;border-radius:2px;display:block}
+/* table */
+.controls{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px}
+.controls input,.controls select{font:inherit;font-size:15px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink)}
+.controls input{flex:1;min-width:200px}
+:focus-visible{outline:3px solid var(--columbia);outline-offset:2px}
+table.data{width:100%;border-collapse:collapse;font-size:14px;min-width:760px}
+table.data th{text-align:left;font-weight:600;color:var(--muted);border-bottom:2px solid var(--line);padding:8px 10px;position:sticky;top:0;background:var(--surface)}
+table.data td{border-bottom:1px solid var(--line);padding:9px 10px;vertical-align:top}
+table.data td.w{font-weight:500}
+.tablebox{max-height:560px;overflow:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.count{font-size:14px;color:var(--muted);margin-bottom:8px}
+/* fix list */
+.phases{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px}
+.phase h3{display:flex;align-items:baseline;gap:8px}
+.phase h3 small{font-family:"Public Sans",Arial,sans-serif;font-size:13px;color:var(--muted);font-weight:500}
+.fix{border-top:1px solid var(--line);padding:12px 0}
+.fix b{display:block;font-weight:600;margin-bottom:2px}
+.fix span{color:var(--muted);font-size:14px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.chip{border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:14px;background:var(--surface)}
+footer{padding:48px 0 60px;color:var(--faint);font-size:13px}
+.tip{position:fixed;pointer-events:none;background:var(--ink);color:var(--bg);font-size:13px;padding:6px 9px;border-radius:6px;max-width:280px;z-index:20;opacity:0;transition:opacity .1s}
+@media (max-width:600px){h2{font-size:28px}.hero{padding:32px 0}.board td{font-size:24px}}
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <h1>The Rays data stack, as it runs today</h1>
+    <p>An inventory of 115 automated processes across Fivetran, Snowflake, Coalesce, Salesforce, and Tableau, gathered on November 5, 2026 from system exports, each tool's console, and team documents.</p>
+    <div class="board scroll" role="region" aria-label="Process status by area" tabindex="0"><table id="board"></table></div>
+    <div class="kicker">
+      <div><b>0</b>Snowflake jobs that alert anyone when they fail</div>
+      <div><b>327 days</b>since the data quality checks stopped</div>
+      <div><b>28 of 39</b>Snowflake jobs run with the top admin role</div>
+      <div><b>10</b>Salesforce automations set off by every hourly update</div>
+      <div><b>~220,000</b>Coalesce queries a day under one person's login</div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+<section id="flow">
+  <h2>How data moves</h2>
+  <p class="lede">Each band is a path data takes, colored by how healthy that path is. Thicker bands carry more processes. Bands are approximate and meant to show shape, not exact volume.</p>
+  <div class="panel scroll"><svg id="sankey" role="img" aria-label="Flow of data from sources through loaders and builders to destinations"></svg></div>
+  <div class="legend"><span><i class="sw" style="background:var(--ok)"></i>Working well</span><span><i class="sw" style="background:var(--watch)"></i>Needs attention</span><span><i class="sw" style="background:var(--risk)"></i>At risk</span><span><i class="sw" style="background:var(--unk)"></i>Not yet mapped</span></div>
+</section>
+
+<section id="broken">
+  <h2>What's broken, and for how long</h2>
+  <p class="lede">Red bars are jobs that stopped after an error, or can no longer run. Gray bars were turned off by someone. Nothing alerted the team in any of these cases.</p>
+  <div class="panel scroll"><svg id="fails" role="img" aria-label="Timeline of failures from December 2025 to November 2026"></svg></div>
+</section>
+
+<section id="clock">
+  <h2>Everything runs on its own clock</h2>
+  <p class="lede">A typical day in Eastern time. No step waits for the one before it, so a slow load upstream means reports and Salesforce updates run on stale data without anyone knowing. Coalesce is the busiest clock: about 156 live refreshes a day, plus copies running in QA and DEV.</p>
+  <div class="panel scroll"><svg id="day" role="img" aria-label="Scheduled run times across a 24-hour day"></svg></div>
+  <p class="note">Hover or tap a mark for details. Fivetran sync times for MLB data aren't confirmed, so they're left off. Times converted from UTC at Eastern Standard Time. Coalesce times come from its Jobs Schedule page.</p>
+</section>
+
+<section id="where">
+  <h2>Where the work happens</h2>
+  <p class="lede">Snowflake is split into a test area (DEV), QA, and the live area (PROD). The original 2025 design says live work belongs in PROD. In practice, a lot of it runs in DEV, with the most powerful role.</p>
+  <div class="grid2">
+    <div class="panel"><h3>Snowflake jobs by area</h3><p class="note" style="margin-top:0">Red: feeds live data or live Salesforce from the test area.</p><div id="envbars"></div></div>
+    <div class="panel"><h3>Who the jobs run as</h3><p class="note" style="margin-top:0">ACCOUNTADMIN can change anything in the account.</p><div id="ownbars"></div></div>
+  </div>
+  <div class="panel" style="margin-top:18px">
+    <h3>Busiest processes in the last 30 days</h3>
+    <p class="note" style="margin-top:0">Scheduled runs from Snowflake's 30-day history. Not shown: the two Webull clean room copy jobs, which run every 5 minutes (roughly 8,600 times a month each) and would dwarf the scale.</p>
+    <div id="busy"></div>
+  </div>
+</section>
+
+<section id="salesforce">
+  <h2>Inside Salesforce</h2>
+  <p class="lede">Salesforce runs its own automations every time a record is saved. Updates from Snowflake set off the ones on Account every hour, and possibly the ones on Contact, Opportunity, and Lead.</p>
+  <div class="grid2">
+    <div class="panel"><h3>Custom automations by record type</h3><p class="note" style="margin-top:0">Flows (solid) plus code triggers (lighter) your organization built.</p><div id="sfobj"></div>
+      <div class="legend"><span><i class="sw" style="background:var(--risk)"></i>Set off hourly or daily by Snowflake</span><span><i class="sw" style="background:var(--watch)"></i>Likely or possibly</span><span><i class="sw" style="background:var(--unk)"></i>Not touched by Snowflake</span></div>
+    </div>
+    <div class="panel"><h3>What's custom and what came with Salesforce</h3><div id="sfcomp"></div>
+      <h3 style="margin-top:22px">What runs on every Account save</h3><ul id="acct" style="margin:6px 0 0;padding-left:18px;font-size:14px"></ul>
+      <p class="note">Plus 3 code triggers: AccountBefore, LogAccountChange, and a rollup trigger.</p>
+    </div>
+  </div>
+  <div class="panel" style="margin-top:18px"><h3>Systems found inside Salesforce that weren't on the map</h3>
+    <div class="chips"><span class="chip">StellarAlgo: nightly data export</span><span class="chip">Account Engagement (Pardot): marketing sync</span><span class="chip">Zoom: call logging</span><span class="chip">DataPrism: unknown sync app</span><span class="chip">Evolute: messaging app</span><span class="chip">About 37 scheduled report emails</span></div>
+  </div>
+</section>
+
+<section id="tableau">
+  <h2>Tableau</h2>
+  <p class="lede">78 of the 128 published data sources query Snowflake live, so most dashboards are only as fresh as the Coalesce timers. Every one of those connections uses a person's own Snowflake login, which is how one expired login took down a finance dashboard on November 3.</p>
+  <div class="grid2">
+    <div class="panel"><h3>Published data sources by where they read</h3><div id="tabtype"></div>
+      <p class="note">Plus 258 connections embedded inside workbooks: about 100 to Snowflake, 19 to BigQuery, 20 to uploaded files, and 7 to the old SQL Server.</p></div>
+    <div class="panel"><h3>Whose Snowflake login each data source uses</h3><p class="note" style="margin-top:0">Published Snowflake data sources. None use a service account.</p><div id="tablogin"></div></div>
+  </div>
+  <div class="panel" style="margin-top:18px"><h3>How much of Tableau is in use</h3><div id="tabuse"></div>
+    <p class="note">Views from Tableau's own usage counts. Most-used workbooks last month: Postseason Inventory Management (1,484 views), CRM Dashboards (1,478), Postseason Suite Availability (1,145).</p></div>
+</section>
+
+<section id="fivetran">
+  <h2>Fivetran connectors</h2>
+  <p class="lede">13 of 24 connectors are running. Most of the paused ones belong to systems the team has moved away from, but their old tables may still be in Snowflake.</p>
+  <div class="tiles" id="tiles"></div>
+  <div class="legend"><span><i class="sw" style="background:var(--ok)"></i>Running</span><span><i class="sw" style="background:var(--watch)"></i>Running on custom code</span><span><i class="sw" style="background:var(--unk)"></i>Paused</span><span><i class="sw" style="background:var(--risk)"></i>Never worked</span></div>
+</section>
+
+<section id="procs">
+  <h2>Stored procedures</h2>
+  <p class="lede">Snowflake lists 878 procedures. Most belong to Snowflake itself and the clean room app. The team wrote 78 of them, and 14 of those are test, debug, or backup copies.</p>
+  <div class="panel"><div class="waffle" id="waffle" role="img" aria-label="878 procedures: 800 Snowflake and clean room, 34 in active use, 30 to review, 14 to delete"></div>
+  <div class="legend" id="wlegend"></div></div>
+</section>
+
+<section id="fixes">
+  <h2>What to fix first</h2>
+  <p class="lede">Grouped by how long each fix takes. The first column needs no new tools.</p>
+  <div class="phases" id="phases"></div>
+</section>
+
+<section id="all">
+  <h2>Every process</h2>
+  <p class="lede">The full inventory. Search or filter to find anything.</p>
+  <div class="controls">
+    <label class="sr" for="q" style="position:absolute;left:-9999px">Search processes</label>
+    <input id="q" type="search" placeholder="Search, for example “Salesforce” or “Levy”">
+    <label for="fa" style="position:absolute;left:-9999px">Area</label><select id="fa"><option value="">All areas</option></select>
+    <label for="fs" style="position:absolute;left:-9999px">Status</label><select id="fs"><option value="">All statuses</option></select>
+  </div>
+  <div class="count" id="cnt"></div>
+  <div class="tablebox"><table class="data"><thead><tr><th>What it does</th><th>Area</th><th>Tool</th><th>How often</th><th>Status</th><th>Problem</th></tr></thead><tbody id="tb"></tbody></table></div>
+</section>
+</main>
+<footer><div class="wrap">Sources: Snowflake SHOW TASKS, SHOW PROCEDURES and 30-day call history; Fivetran Connections page; Salesforce Flow, Apex trigger and scheduled job queries; the January 2025 “Data Ecosystem Phase 1 Deployment” deck; team Teams threads. Collected November 5, 2026. Some sources and targets are inferred from job names and should be confirmed with owners.</div></footer>
+<div class="tip" id="tip" role="tooltip"></div>
+
+<script>
+const D = {"rows": [{"area": "Data comes in", "what": "Levy premium seating sales from partner E15", "tool": "Snowflake job", "often": "Twice a day", "status": "Broken", "problem": "Stopped after errors on Mar 1, 2026; nobody was alerted", "next": "Find the error; fix or retire", "tech": "E15_LEVY_PREMIUM_DATA_INGESTION_PROC_CALL", "where": "TBRDP_DW_DEV"}, {"area": "Data comes in", "what": "MLB ticketing data (main)", "tool": "Fivetran", "often": "Automatic", "status": "Running", "problem": "", "next": "", "tech": "gcp_tdc", "where": "Fivetran"}, {"area": "Data comes in", "what": "MLB ticketing data (fast refresh)", "tool": "Fivetran", "often": "Automatic", "status": "Running", "problem": "", "next": "", "tech": "gcp_tdc_fast", "where": "Fivetran"}, {"area": "Data comes in", "what": "MLB ticketing data (medium refresh)", "tool": "Fivetran", "often": "Automatic", "status": "Running", "problem": "", "next": "", "tech": "gcp_tdc_mid", "where": "Fivetran"}, {"area": "Data comes in", "what": "MLB ticketing patron data", "tool": "Fivetran", "often": "Automatic", "status": "Running", "problem": "", "next": "", "tech": "gcp_tdc_patron", "where": "Fivetran"}, {"area": "Data comes in", "what": "MLB Wheelhouse fan data (fast refresh)", "tool": "Fivetran", "often": "Automatic", "status": "Running", "problem": "", "next": "", "tech": "gcp_wheelhouse_fast", "where": "Fivetran"}, {"area": "Data comes in", "what": "MLB Wheelhouse purchase considerations", "tool": "Fivetran", "often": "Automatic", "status": "Running", "problem": "", "next": "", "tech": "gcp_wheelhouse_purchase_considerations", "where": "Fivetran"}, {"area": "Data comes in", "what": "MLB Wheelhouse fan surveys (VOC)", "tool": "Fivetran", "often": "Automatic", "status": "Running", "problem": "", "next": "", "tech": "gcp_wheelhouse_voc", "where": "Fivetran"}, {"area": "Data comes in", "what": "MLB Wheelhouse wallet transactions", "tool": "Fivetran", "often": "Automatic", "status": "Running", "problem": "", "next": "", "tech": "gcp_wheelhouse_wallet_transactions", "where": "Fivetran"}, {"area": "Data comes in", "what": "Salesforce CRM", "tool": "Fivetran", "often": "Automatic", "status": "Running", "problem": "", "next": "", "tech": "salesforce_crm", "where": "Fivetran"}, {"area": "Data comes in", "what": "Fivetran usage and sync logs", "tool": "Fivetran", "often": "Automatic", "status": "Running", "problem": "", "next": "", "tech": "fivetran_metadata", "where": "Fivetran"}, {"area": "Data comes in", "what": "Concessions sales (Mashgin)", "tool": "Fivetran (custom code)", "often": "Automatic", "status": "Running", "problem": "Custom code your team maintains", "next": "Confirm the code is saved in Git and someone gets alerts", "tech": "concessions_mashgin", "where": "Fivetran"}, {"area": "Data comes in", "what": "Parking (ParkHub)", "tool": "Fivetran (custom code)", "often": "Automatic", "status": "Running", "problem": "Custom code your team maintains", "next": "Confirm the code is saved in Git and someone gets alerts", "tech": "parking_parkhub", "where": "Fivetran"}, {"area": "Data comes in", "what": "MLB live game feed (GUMBO)", "tool": "Fivetran (custom code)", "often": "Automatic", "status": "Running", "problem": "Custom code your team maintains", "next": "Confirm the code is saved in Git and someone gets alerts", "tech": "mlb_gumbo", "where": "Fivetran"}, {"area": "Data comes in", "what": "Levy concessions sales from partner E15", "tool": "Snowflake job", "often": "Twice a day", "status": "Running", "problem": "Runs in the test area (DEV) but feeds live data", "next": "Move to the live area (PROD)", "tech": "E15_LEVY_CONCESSIONS_DATA_INGESTION_PROC_CALL", "where": "TBRDP_DW_DEV"}, {"area": "Data comes in", "what": "Levy suites sales from partner E15", "tool": "Snowflake job", "often": "Twice a day", "status": "Running", "problem": "Runs in the test area (DEV) but feeds live data", "next": "Move to the live area (PROD)", "tech": "E15_LEVY_SUITES_DATA_INGESTION_PROC_CALL", "where": "TBRDP_DW_DEV"}, {"area": "Data comes in", "what": "Retail inventory from partner E15", "tool": "Snowflake job", "often": "Twice a day", "status": "Running", "problem": "Runs in the test area (DEV) but feeds live data", "next": "Move to the live area (PROD)", "tech": "E15_RETAIL_INVENTORY_DATA_INGESTION_PROC_CALL", "where": "TBRDP_DW_DEV"}, {"area": "Data comes in", "what": "Retail sales from partner E15", "tool": "Snowflake job", "often": "Twice a day", "status": "Running", "problem": "Runs in the test area (DEV) but feeds live data", "next": "Move to the live area (PROD)", "tech": "E15_RETAIL_TRANSACTIONS_DATA_INGESTION_PROC_CALL", "where": "TBRDP_DW_DEV"}, {"area": "Data comes in", "what": "Eventellect partner data", "tool": "Snowflake job", "often": "Every 2 hours", "status": "Running", "problem": "Runs in the test area (DEV) but feeds live data", "next": "Move to the live area (PROD)", "tech": "EVENTELLECT_DATA_INGESTION_PROC_CALL", "where": "TBRDP_DW_DEV"}, {"area": "Data comes in", "what": "Eventellect forecast data", "tool": "Snowflake job", "often": "Daily, 10:30 AM", "status": "Running", "problem": "Runs in the test area (DEV) but feeds live data", "next": "Move to the live area (PROD)", "tech": "EVENTELLECT_FORECAST_INGESTION_PROC_CALL", "where": "TBRDP_DW_DEV"}, {"area": "Data comes in", "what": "Webull clean room results (test copy)", "tool": "Snowflake job", "often": "Every 5 minutes", "status": "Running", "problem": "Runs 288 times a day in the test area", "next": "Confirm it is still needed", "tech": "REFRESH_ACTIVATION_SUMMARY_TABLE", "where": "TBRDP_DW_DEV"}, {"area": "Data comes in", "what": "Webull clean room results", "tool": "Snowflake job", "often": "Every 5 minutes", "status": "Running", "problem": "Uses the test area's computing resources", "next": "Switch to a live-area warehouse", "tech": "REFRESH_ACTIVATION_SUMMARY_TABLE", "where": "TBRDP_DW_PROD"}, {"area": "Data comes in", "what": "Apollo lead list uploads", "tool": "Internal app (Streamlit)", "often": "When someone uses it", "status": "Running", "problem": "Manual; live app sits in a \"sandbox\" area", "next": "Move to a proper live location; document", "tech": "B2B import app + SP_B2B_* procedures", "where": "TBRDP_DW_PROD.SANDBOX"}, {"area": "Data comes in", "what": "MLB Wheelhouse fan data (main)", "tool": "Fivetran", "often": "Paused", "status": "Turned off", "problem": "Last ran a year ago; old data may still be used in reports", "next": "Check nothing uses it, then delete", "tech": "gcp_wheelhouse", "where": "Fivetran"}, {"area": "Data comes in", "what": "MLB Wheelhouse fan data (medium refresh)", "tool": "Fivetran", "often": "Paused", "status": "Turned off", "problem": "Last ran a year ago; old data may still be used in reports", "next": "Check nothing uses it, then delete", "tech": "gcp_wheelhouse_mid", "where": "Fivetran"}, {"area": "Data comes in", "what": "Fortress (custom code)", "tool": "Fivetran", "often": "Paused", "status": "Turned off", "problem": "Last ran a year ago; old data may still be used in reports", "next": "Check nothing uses it, then delete", "tech": "fortress", "where": "Fivetran"}, {"area": "Data comes in", "what": "Demand forecast files", "tool": "Fivetran", "often": "Paused", "status": "Turned off", "problem": "Last ran 2 years ago; old data may still be used in reports", "next": "Check nothing uses it, then delete", "tech": "demand_a.da_daily_fcst", "where": "Fivetran"}, {"area": "Data comes in", "what": "CrowdIQ crowd flow files", "tool": "Fivetran", "often": "Paused", "status": "Turned off", "problem": "Last ran 2 years ago; old data may still be used in reports", "next": "Check nothing uses it, then delete", "tech": "gcs_crowdiq.crowdflow", "where": "Fivetran"}, {"area": "Data comes in", "what": "CrowdIQ fan files", "tool": "Fivetran", "often": "Paused", "status": "Turned off", "problem": "Last ran 2 years ago; old data may still be used in reports", "next": "Check nothing uses it, then delete", "tech": "gcs_crowdiq.fans", "where": "Fivetran"}, {"area": "Data comes in", "what": "Old Dynamics CRM", "tool": "Fivetran", "often": "Paused", "status": "Turned off", "problem": "Last ran a year ago; old data may still be used in reports", "next": "Check nothing uses it, then delete", "tech": "dynamics_crm", "where": "Fivetran"}, {"area": "Data comes in", "what": "Old KORE CRM (Dynamics)", "tool": "Fivetran", "often": "Paused", "status": "Turned off", "problem": "Last ran a year ago; old data may still be used in reports", "next": "Check nothing uses it, then delete", "tech": "dynamics_kore_crm", "where": "Fivetran"}, {"area": "Data comes in", "what": "Salesforce test environment", "tool": "Fivetran", "often": "Paused", "status": "Turned off", "problem": "Last ran a year ago; old data may still be used in reports", "next": "Check nothing uses it, then delete", "tech": "salesforce_sandbox", "where": "Fivetran"}, {"area": "Data comes in", "what": "E15 data (Fivetran attempt)", "tool": "Fivetran", "often": "Paused", "status": "Never worked", "problem": "Never synced; E15 is now loaded another way", "next": "Delete", "tech": "snowflake_e15", "where": "Fivetran"}, {"area": "Data comes in", "what": "Old KORE CRM (SQL Server)", "tool": "Fivetran", "often": "Paused", "status": "Never worked", "problem": "Never synced", "next": "Delete", "tech": "kore_crm", "where": "Fivetran"}, {"area": "Data is processed", "what": "Data quality checks (DEV)", "tool": "Snowflake job", "often": "Daily, 7 AM", "status": "Broken", "problem": "Stopped after errors on Dec 13, 2025; off for about 11 months", "next": "Fix and turn back on; add alerts", "tech": "RUN_DQ_TASK", "where": "TBRDP_DW_DEV"}, {"area": "Data is processed", "what": "Data quality checks (QA)", "tool": "Snowflake job", "often": "Daily, 7 AM", "status": "Broken", "problem": "Stopped after errors on Dec 13, 2025; off for about 11 months", "next": "Fix and turn back on; add alerts", "tech": "RUN_DQ_TASK", "where": "TBRDP_DW_QA"}, {"area": "Data is processed", "what": "Data quality checks (PROD)", "tool": "Snowflake job", "often": "Daily, 7 AM", "status": "Broken", "problem": "Stopped after errors on Dec 13, 2025; off for about 11 months", "next": "Fix and turn back on; add alerts", "tech": "RUN_DQ_TASK", "where": "TBRDP_DW_PROD"}, {"area": "Data is processed", "what": "Daily CP sales report snapshot (DEV copy)", "tool": "Coalesce", "often": "Daily, 5:40 PM", "status": "Broken", "problem": "Failed on its last run (Nov 4)", "next": "Check the error and whether anyone was notified", "tech": "Daily CP Sales Report Snapshot", "where": "DEV"}, {"area": "Data is processed", "what": "Update sales call activity", "tool": "Snowflake job", "often": "None", "status": "Broken", "problem": "Lost its schedule in June, so it can never run", "next": "Fix or delete", "tech": "TSK_REFRESH_CALL_ACTIVITY", "where": "TBRDP_DW_PROD"}, {"area": "Data is processed", "what": "Update email analytics", "tool": "Snowflake job", "often": "None", "status": "Broken", "problem": "Lost its schedule in June, so it can never run", "next": "Fix or delete", "tech": "TSK_REFRESH_EMAIL_ANALYTICS", "where": "TBRDP_DW_PROD"}, {"area": "Data is processed", "what": "Airflow jobs against the live area", "tool": "Airflow", "often": "Unknown", "status": "Unknown", "problem": "An Airflow service account queries PROD; owner unknown", "next": "Find out who runs it; it may be the orchestrator you need", "tech": "AIRFLOW_SVC", "where": "TBRDP_DW_PROD"}, {"area": "Data is processed", "what": "Match Salesforce accounts to ticketing accounts", "tool": "Snowflake job", "often": "Weekly, Mondays 6 AM", "status": "Running", "problem": "Matches can be up to a week out of date", "next": "Consider running daily", "tech": "TASK_REFRESH_ACCOUNT_CROSSWALK", "where": "TBRDP_DW_PROD"}, {"area": "Data is processed", "what": "Ticket sales forecast", "tool": "Snowflake job", "often": "Daily, 10:36 AM", "status": "Running", "problem": "Live forecast also runs a \"DEV\" version of the code", "next": "Confirm which version is correct", "tech": "TASK_TICKET_DETAIL_FORECAST_DAILY_PROC_CALL", "where": "TBRDP_DW_PROD"}, {"area": "Data is processed", "what": "Rerun Webull fan-overlap analysis", "tool": "Snowflake job", "often": "Daily, 4 AM", "status": "Running", "problem": "", "next": "", "tech": "RUN_DCR_ANALYSIS_DAILY", "where": "TBRDP_DW_PROD"}, {"area": "Data is processed", "what": "Coalesce data quality checks", "tool": "Coalesce", "often": "Ongoing (about 24,000 queries a month)", "status": "Running", "problem": "Run only in the test area, not on live data", "next": "Run them on PROD loads too", "tech": "COALESCE_DATA_QUALITY", "where": "TBRDP_DW_DEV"}, {"area": "Data is processed", "what": "Webull clean room (matches fans with Webull customers)", "tool": "Snowflake app", "often": "Continuously", "status": "Running", "problem": "Set up by Snowflake; Teams says some fans are not being flagged", "next": "Get documentation from Snowflake; name an internal owner", "tech": "Data Clean Rooms app", "where": "SAMOOHA databases"}, {"area": "Data is processed", "what": "Refresh live tables every 15 minutes", "tool": "Coalesce", "often": "Every 15 minutes", "status": "Running", "problem": "Runs on a timer, not when Fivetran finishes loading; overlaps the 30-minute and 2-hour jobs", "next": "Trigger after loads finish (orchestrator)", "tech": "15 MIN Schedule", "where": "PROD"}, {"area": "Data is processed", "what": "Refresh live tables every 30 minutes", "tool": "Coalesce", "often": "Every 30 minutes", "status": "Running", "problem": "Runs on a timer, not when Fivetran finishes loading; overlaps the 15-minute job", "next": "Same as above", "tech": "30 MIN Schedule", "where": "PROD"}, {"area": "Data is processed", "what": "Refresh live tables every 2 hours", "tool": "Coalesce", "often": "Every 2 hours (odd hours)", "status": "Running", "problem": "Runs on a timer, not when Fivetran finishes loading", "next": "Same as above", "tech": "2 Hour Schedule", "where": "PROD"}, {"area": "Data is processed", "what": "Daily post-game refresh (live)", "tool": "Coalesce", "often": "Daily, 10:00 AM", "status": "Running", "problem": "", "next": "", "tech": "Daily Post Game Schedule", "where": "PROD"}, {"area": "Data is processed", "what": "Daily CP sales report snapshot (live)", "tool": "Coalesce", "often": "Daily, 5:40 PM", "status": "Running", "problem": "", "next": "", "tech": "Daily CP Sales Report Snapshot", "where": "PROD"}, {"area": "Data is processed", "what": "Daily refresh (live)", "tool": "Coalesce", "often": "Daily, 7:40 PM", "status": "Running", "problem": "", "next": "", "tech": "DAILY Schedule", "where": "PROD"}, {"area": "Data is processed", "what": "Asset inventory snapshot (live)", "tool": "Coalesce", "often": "Daily, 8:20 PM", "status": "Running", "problem": "", "next": "", "tech": "Asset Inventory Snapshot", "where": "PROD"}, {"area": "Data is processed", "what": "Hourly refresh (QA copy)", "tool": "Coalesce", "often": "Hourly", "status": "Running", "problem": "QA refreshes on a schedule like live, adding cost", "next": "Run QA only when testing a change", "tech": "Hourly Schedule", "where": "QA"}, {"area": "Data is processed", "what": "2-hour refresh (QA copy)", "tool": "Coalesce", "often": "Every 2 hours", "status": "Running", "problem": "QA refreshes on a schedule like live, adding cost", "next": "Run QA only when testing a change", "tech": "2 Hour Schedule", "where": "QA"}, {"area": "Data is processed", "what": "Daily refresh (QA copy)", "tool": "Coalesce", "often": "Daily, 7:25 PM", "status": "Running", "problem": "QA refreshes on a schedule like live, adding cost", "next": "Run QA only when testing a change", "tech": "DAILY Schedule", "where": "QA"}, {"area": "Data is processed", "what": "Daily post-game refresh (QA copy)", "tool": "Coalesce", "often": "Daily, 10:00 AM", "status": "Running", "problem": "Runs at the same moment in DEV, QA, and live", "next": "Run QA only when testing a change", "tech": "Daily Post Game Schedule", "where": "QA"}, {"area": "Data is processed", "what": "Daily CP sales report snapshot (QA copy)", "tool": "Coalesce", "often": "Daily, 5:40 PM", "status": "Running", "problem": "Runs at the same moment in DEV, QA, and live", "next": "Run QA only when testing a change", "tech": "Daily CP Sales Report Snapshot", "where": "QA"}, {"area": "Data is processed", "what": "Asset inventory snapshot (QA copy)", "tool": "Coalesce", "often": "Daily, 10:20 PM", "status": "Running", "problem": "QA refreshes on a schedule like live, adding cost", "next": "Run QA only when testing a change", "tech": "Asset Inventory Snapshot", "where": "QA"}, {"area": "Data is processed", "what": "Daily forecast snapshot (QA copy)", "tool": "Coalesce", "often": "Daily, 12:00 PM", "status": "Running", "problem": "Still runs in QA though paused in live since Sep 20", "next": "Pause or delete", "tech": "Daily Forecast Snapshot", "where": "QA"}, {"area": "Data is processed", "what": "Daily forecast dashboard refresh (QA copy)", "tool": "Coalesce", "often": "Daily, 8:20 PM", "status": "Running", "problem": "Still runs in QA though paused in live since Sep 20", "next": "Pause or delete", "tech": "Daily Forecast Dash Schedule", "where": "QA"}, {"area": "Data is processed", "what": "Daily post-game refresh (DEV copy)", "tool": "Coalesce", "often": "Daily, 10:00 AM", "status": "Running", "problem": "Runs at the same moment in DEV, QA, and live", "next": "Run DEV only when building", "tech": "Daily Post Game Schedule", "where": "DEV"}, {"area": "Data is processed", "what": "Asset inventory snapshot (DEV copy)", "tool": "Coalesce", "often": "Daily, 9:20 PM", "status": "Running", "problem": "Scheduled refresh in the test area", "next": "Run DEV only when building", "tech": "Asset Inventory Snapshot", "where": "DEV"}, {"area": "Data is processed", "what": "Daily forecast snapshot (live)", "tool": "Coalesce", "often": "Daily, 12:00 PM", "status": "Turned off", "problem": "Paused since Sep 20", "next": "Confirm if still needed", "tech": "Daily Forecast Snapshot", "where": "PROD"}, {"area": "Data is processed", "what": "Daily forecast dashboard refresh (live)", "tool": "Coalesce", "often": "Daily, 9:55 PM", "status": "Turned off", "problem": "Paused since Sep 20", "next": "Confirm if still needed", "tech": "Daily Forecast Dash Schedule", "where": "PROD"}, {"area": "Data is processed", "what": "Fan survey refresh (live)", "tool": "Coalesce", "often": "Daily", "status": "Turned off", "problem": "Paused since Oct 5 (survey AI jobs are also off)", "next": "Confirm if still needed", "tech": "VOC_HOURLY_RUN", "where": "PROD"}, {"area": "Data is processed", "what": "Fan survey refresh (QA copy)", "tool": "Coalesce", "often": "Daily", "status": "Turned off", "problem": "Paused since Aug 13", "next": "Delete if not needed", "tech": "VOC_HOURLY_RUN", "where": "QA"}, {"area": "Data is processed", "what": "Fan survey refresh (DEV copy)", "tool": "Coalesce", "often": "Hourly", "status": "Turned off", "problem": "Schedule paused since Aug 7, yet it ran today, so something else is starting it", "next": "Find what triggers it (API, CLI, or a person)", "tech": "VOC_HOURLY_RUN", "where": "DEV"}, {"area": "Data is processed", "what": "Process yesterday's fan survey comments with AI", "tool": "Snowflake job", "often": "Daily, 10:15 AM", "status": "Turned off", "problem": "Turned off Aug 15 (with the rest of the survey AI chain)", "next": "Confirm whether this is on purpose (offseason?)", "tech": "TSK_REFRESH_SENTENCE_LEVEL_YESTERDAY", "where": "TBRDP_DW_DEV"}, {"area": "Data is processed", "what": "Catch up on missed survey comments", "tool": "Snowflake job", "often": "After the job above", "status": "Turned off", "problem": "Turned off Aug 15", "next": "Same as above", "tech": "TSK_REFRESH_SENTENCE_LEVEL_BACKFILL", "where": "TBRDP_DW_DEV"}, {"area": "Data is processed", "what": "Hourly survey catch-up", "tool": "Snowflake job", "often": "Hourly", "status": "Turned off", "problem": "Turned off June 4", "next": "Delete if replaced", "tech": "TSK_SENTENCE_LEVEL_CATCHUP", "where": "TBRDP_DW_DEV"}, {"area": "Data is processed", "what": "One-time 2026 survey backfill", "tool": "Snowflake job", "often": "Every minute", "status": "Turned off", "problem": "Leftover one-time job", "next": "Delete", "tech": "TSK_BACKFILL_SENTENCE_LEVEL_2026", "where": "TBRDP_DW_DEV"}, {"area": "Data is processed", "what": "Tag new sales emails with AI", "tool": "Snowflake job", "often": "Every 2 hours", "status": "Turned off", "problem": "Sales AI chain off since early June", "next": "Confirm with the owner whether it should run", "tech": "TSK_ENRICH_NEW_EMAILS", "where": "TBRDP_DW_PROD"}, {"area": "Data is processed", "what": "Update sales activity per opportunity", "tool": "Snowflake job", "often": "After the job above", "status": "Turned off", "problem": "Off since early June", "next": "Same as above", "tech": "TSK_REFRESH_ACTIVITY_METRICS", "where": "TBRDP_DW_PROD"}, {"area": "Data is processed", "what": "Score deal health", "tool": "Snowflake job", "often": "After the job above", "status": "Turned off", "problem": "Off since early June", "next": "Same as above", "tech": "TSK_REFRESH_DEAL_HEALTH", "where": "TBRDP_DW_PROD"}, {"area": "Data is processed", "what": "Update sales activity summary", "tool": "Snowflake job", "often": "Every 2 hours", "status": "Turned off", "problem": "Off since June 8", "next": "Same as above", "tech": "TSK_REFRESH_DIM_ACTIVITY_SUMMARY", "where": "TBRDP_DW_PROD"}, {"area": "Inside Salesforce", "what": "DataPrism sync", "tool": "Unknown app", "often": "About hourly", "status": "Unknown", "problem": "Unknown app syncing Salesforce data", "next": "Find out what DataPrism is and who owns it", "tech": "DataPrismSyncSObjectsCronJob", "where": "Salesforce"}, {"area": "Inside Salesforce", "what": "Evolute messaging app", "tool": "Evolute app", "often": "Unknown", "status": "Unknown", "problem": "Messaging app; unclear what it sends", "next": "Find out what it sends and to whom", "tech": "EvoluteMessage__* triggers", "where": "Salesforce"}, {"area": "Inside Salesforce", "what": "7 automations that run every time an Account is saved", "tool": "Salesforce Flow", "often": "Every Account save, including the hourly Snowflake update", "status": "Running", "problem": "Fire up to 24 times a day from Snowflake. One updates Contracts, which sets off more automations", "next": "Check each Flow's start conditions; confirm Snowflake only sends accounts that changed", "tech": "See \"Salesforce detail\" tab", "where": "Salesforce"}, {"area": "Inside Salesforce", "what": "3 code triggers on Account (incl. change logging and rollups)", "tool": "Salesforce Apex", "often": "Every Account save, including the hourly Snowflake update", "status": "Running", "problem": "LogAccountChange may be writing a log entry every hour for every account sent", "next": "Ask who owns these and what LogAccountChange records", "tech": "AccountBefore, LogAccountChange, dlrs_AccountTrigger", "where": "Salesforce"}, {"area": "Inside Salesforce", "what": "Contact automations (2 Flows, 2 code triggers)", "tool": "Salesforce Flow + Apex", "often": "Every Contact save", "status": "Running", "problem": "Fire when Snowflake updates emails or the B2B import adds contacts", "next": "Confirm with the Salesforce admin", "tech": "See \"Salesforce detail\" tab", "where": "Salesforce"}, {"area": "Inside Salesforce", "what": "Opportunity automations (9 Flows, 5 code triggers)", "tool": "Salesforce Flow + Apex", "often": "Every Opportunity save", "status": "Running", "problem": "May fire when the B2B import creates records", "next": "Confirm what the B2B import writes", "tech": "See \"Salesforce detail\" tab", "where": "Salesforce"}, {"area": "Inside Salesforce", "what": "Ticket purchase rollups", "tool": "Salesforce Apex (DLRS app)", "often": "Every ticket purchase saved", "status": "Running", "problem": "Fires on the daily Snowflake ticket purchase upload", "next": "None needed; just document", "tech": "dlrs_Ticket_PurchaseTrigger", "where": "Salesforce"}, {"area": "Inside Salesforce", "what": "9 scheduled Flows (cleanup and field updates)", "tool": "Salesforce Flow", "often": "Daily, various times", "status": "Running", "problem": "Run on their own timers, separate from Snowflake", "next": "Document; check they do not clash with Snowflake updates", "tech": "See \"Salesforce detail\" tab", "where": "Salesforce"}, {"area": "Inside Salesforce", "what": "Rollup calculations (about 17 scheduled jobs)", "tool": "Salesforce (DLRS app)", "often": "Hourly and nightly", "status": "Running", "problem": "", "next": "Document", "tech": "rollup_* scheduled jobs", "where": "Salesforce"}, {"area": "Inside Salesforce", "what": "Nightly member activity batch", "tool": "Salesforce Apex", "often": "Nightly, 2 AM", "status": "Running", "problem": "Purpose unknown", "next": "Ask the Salesforce admin", "tech": "SeasonMemberActivityBatch - Nightly", "where": "Salesforce"}, {"area": "Inside Salesforce", "what": "About 37 scheduled report emails", "tool": "Salesforce reports", "often": "Twice a day (about 9 AM and 5 PM)", "status": "Running", "problem": "Likely report subscriptions; recipients unknown", "next": "List them in Setup > Scheduled Jobs", "tech": "Job type A", "where": "Salesforce"}, {"area": "Inside Salesforce", "what": "StellarAlgo daily export", "tool": "StellarAlgo app", "often": "Nightly, about 8 PM", "status": "Running", "problem": "Sends Salesforce data to StellarAlgo; not on any diagram yet", "next": "Find out what goes to StellarAlgo and what comes back", "tech": "StellarAlgo Default Daily Batch/Queable Export", "where": "Salesforce"}, {"area": "Inside Salesforce", "what": "Account Engagement (Pardot) marketing sync", "tool": "Account Engagement app", "often": "Ongoing", "status": "Running", "problem": "Two of its Flows were changed Nov 4", "next": "Confirm what syncs with marketing", "tech": "pi_* jobs, ChangeTaskFromPardotTask", "where": "Salesforce"}, {"area": "Inside Salesforce", "what": "Zoom call logging", "tool": "Zoom app + Flow", "often": "Daily, 3 AM", "status": "Running", "problem": "", "next": "Document", "tech": "Zoom_Call_Log_Update_Task_Call_Disposition", "where": "Salesforce"}, {"area": "Inside Salesforce", "what": "Salesforce CPQ and approvals package code", "tool": "Salesforce CPQ", "often": "Every quote change", "status": "Running", "problem": "Vendor code (about 70 triggers); no action needed", "next": "None", "tech": "SBQQ__*, sbaa__* triggers", "where": "Salesforce"}, {"area": "Inside Salesforce", "what": "About 126 built-in Salesforce Flows", "tool": "Salesforce", "often": "Only when used", "status": "Running", "problem": "Templates that come with Salesforce (AI, service, appointments)", "next": "Ignore", "tech": "Flows with no last-modified date", "where": "Salesforce"}, {"area": "Data goes out", "what": "Flag Webull customers (old test copy)", "tool": "Snowflake job", "often": "Every 5 minutes", "status": "Broken", "problem": "Stopped after errors in April", "next": "Delete", "tech": "TRIGGER_WEBULL_OVERLAP_PUSH", "where": "TBRDP_DW_DEV"}, {"area": "Data goes out", "what": "Trade Item Notes (Prod) extract", "tool": "Tableau Cloud", "often": "Should refresh; last ran Apr 14, 2026", "status": "Broken", "problem": "Seven months stale and still viewed", "next": "Fix or remove its refresh schedule", "tech": "Trade Item Notes (Prod)", "where": "Tableau Cloud"}, {"area": "Data goes out", "what": "Weekly sales rep report card email", "tool": "Snowflake job", "often": "Mondays, 8 AM", "status": "Broken", "problem": "Points to code that does not exist", "next": "Fix or retire", "tech": "TSK_CRM_AE_WEEKLY_REPORT_CARD", "where": "TBRDP_DW_PROD"}, {"area": "Data goes out", "what": "Old SQL Server pulling from Snowflake", "tool": "SQL Server linked server", "often": "Unknown", "status": "Unknown", "problem": "The old warehouse still reads live data from Snowflake PROD", "next": "Ask what still runs on sqldwag before it is shut off", "tech": "SVC_SQLSERVER_LINK", "where": "sqldwag"}, {"area": "Data goes out", "what": "Update customer accounts in live Salesforce", "tool": "Snowflake job", "often": "Hourly", "status": "Running", "problem": "Runs in the test area with top admin permissions", "next": "Move to live area; use one integration login", "tech": "SALESFORCE_ACCOUNT_UPSERT_PRODUCTION", "where": "TBRDP_DW_DEV"}, {"area": "Data goes out", "what": "Flag Webull customers in Salesforce", "tool": "Snowflake job", "often": "Daily, 6 AM", "status": "Running", "problem": "Failed in September; calls code stored in the test area", "next": "Move code to live area; investigate missing flags", "tech": "TRIGGER_WEBULL_OVERLAP_PUSH", "where": "TBRDP_DW_PROD"}, {"area": "Data goes out", "what": "Send ticket purchases to Salesforce", "tool": "Snowflake job", "often": "Daily, 1 AM", "status": "Running", "problem": "Live job stored in a \"sandbox\" area", "next": "Move to a proper live location", "tech": "SF_TICKET_PURCHASE_UPSERT_TASK", "where": "TBRDP_DW_PROD.SANDBOX"}, {"area": "Data goes out", "what": "Dashboards that query Snowflake live (78 published data sources)", "tool": "Tableau Cloud", "often": "Every time someone opens a dashboard", "status": "Running", "problem": "Every one uses a personal Snowflake login; 42 use the same person's", "next": "Move to a Tableau service account in Snowflake", "tech": "Published Snowflake data sources (OAuth)", "where": "Tableau Cloud"}, {"area": "Data goes out", "what": "Workbook extract refreshes (about 34 workbooks)", "tool": "Tableau Cloud", "often": "Frequent; latest runs 11 AM to 12:15 PM today", "status": "Running", "problem": "Start a few minutes after Coalesce refreshes start, not after they finish. Schedules are visible only to admins", "next": "Get schedules from the Tableau admin; trigger after Coalesce", "tech": "Embedded extracts refreshed Nov 4-5", "where": "Tableau Cloud"}, {"area": "Data goes out", "what": "Dashboards reading BigQuery directly (10 published, 19 in workbooks)", "tool": "Tableau Cloud", "often": "Live, and 9 extracts refreshed today", "status": "Running", "problem": "Marketing and fan survey reporting skip Snowflake", "next": "Decide whether these belong in Snowflake", "tech": "Paid Media, Rays.TV, VOC Post Attendance", "where": "Tableau Cloud"}, {"area": "Data goes out", "what": "Dashboards built on uploaded Excel and CSV files (8 published, 20 in workbooks)", "tool": "Tableau Cloud", "often": "Manual uploads", "status": "Running", "problem": "Depend on someone re-uploading a file", "next": "Find which are still current", "tech": "Tropicana Field manifest, form exports", "where": "Tableau Cloud"}, {"area": "Data goes out", "what": "Report emails sent through Microsoft", "tool": "Snowflake + Microsoft", "often": "As reports run", "status": "Running", "problem": "Uses a Microsoft app secret that will expire", "next": "Find the expiry date and the IT owner", "tech": "SP_SEND_EMAIL_GRAPH", "where": "TBRDP_DW_DEV"}, {"area": "Data goes out", "what": "Update accounts in the Salesforce test environment", "tool": "Snowflake job", "often": "Hourly", "status": "Turned off", "problem": "", "next": "Delete if no longer needed", "tech": "SALESFORCE_ACCOUNT_UPSERT_SANDBOX", "where": "TBRDP_DW_DEV"}, {"area": "Data goes out", "what": "Dashboards on the old SQL Server and KORE (21 published, 7 in workbooks)", "tool": "Tableau Cloud", "often": "Frozen extracts", "status": "Turned off", "problem": "Last refreshed 2024 to 2025; a few still viewed", "next": "Point remaining users to Snowflake versions; retire", "tech": "sqldwag, pssdb07.koresoftware.com", "where": "Tableau Cloud"}, {"area": "Data goes out", "what": "Daily fan survey report card email", "tool": "Snowflake job", "often": "After survey processing", "status": "Turned off", "problem": "Turned off Aug 15", "next": "Confirm if still wanted", "tech": "TASK_VOC_DAILY_REPORT_CARD", "where": "TBRDP_DW_DEV"}, {"area": "Housekeeping", "what": "Clean up old lead-list import runs", "tool": "Snowflake job", "often": "Daily, 3 AM", "status": "Broken", "problem": "Stopped after errors on Oct 2", "next": "Find the error and fix", "tech": "TASK_B2B_PURGE_OLD_RUNS", "where": "TBRDP_DW_PROD"}, {"area": "Housekeeping", "what": "Spending dashboard app (Streamlit)", "tool": "Snowflake Streamlit", "often": "Constantly (about 3,700 queries a day)", "status": "Running", "problem": "Queries far more often than a dashboard needs", "next": "Check its refresh settings", "tech": "STPLATSTREAMLIT user, GOVERNANCE database", "where": "GOVERNANCE"}, {"area": "Housekeeping", "what": "Daily Snowflake spending email", "tool": "Snowflake job", "often": "Daily, 7 AM", "status": "Running", "problem": "Runs with top admin permissions", "next": "Move to a limited service account", "tech": "DAILY_BUDGET_EMAIL", "where": "GOVERNANCE"}, {"area": "Housekeeping", "what": "Shut off AI features if spending is too high", "tool": "Snowflake job", "often": "Hourly", "status": "Running", "problem": "", "next": "", "tech": "CREDIT_AI_SERVICE_USAGE_DAILY", "where": "TBRDP_DW_DEV"}, {"area": "Housekeeping", "what": "Turn AI features back on", "tool": "Snowflake job", "often": "Daily, 7:05 PM", "status": "Running", "problem": "", "next": "", "tech": "RESTORE_AI_SERVICES_ACCESS_DAILY", "where": "TBRDP_DW_DEV"}, {"area": "Housekeeping", "what": "Turn on survey AI search", "tool": "Snowflake job", "often": "Daily, 11 AM", "status": "Running", "problem": "", "next": "", "tech": "TASK_VOC_SEARCH_RESUME", "where": "TBRDP_DW_DEV"}, {"area": "Housekeeping", "what": "Turn off survey AI search (saves cost)", "tool": "Snowflake job", "often": "Daily, 5 PM", "status": "Running", "problem": "", "next": "", "tech": "TASK_VOC_SEARCH_SUSPEND", "where": "TBRDP_DW_DEV"}, {"area": "Housekeeping", "what": "Check that sales AI tables are up to date", "tool": "Snowflake job", "often": "Daily, 7 AM", "status": "Turned off", "problem": "The health check itself is off", "next": "Turn back on once the sales AI chain runs", "tech": "TSK_CRM_AGENT_HEALTH_CHECK", "where": "TBRDP_DW_PROD"}], "sfobj": [{"o": "Opportunity", "flows": 9, "trig": 5, "snow": "possibly"}, {"o": "Account", "flows": 7, "trig": 3, "snow": "hourly"}, {"o": "Opportunity Product", "flows": 4, "trig": 2, "snow": "no"}, {"o": "Contract", "flows": 3, "trig": 2, "snow": "no"}, {"o": "Quote Line", "flows": 5, "trig": 0, "snow": "no"}, {"o": "Contract Asset", "flows": 4, "trig": 0, "snow": "no"}, {"o": "Subscription", "flows": 4, "trig": 0, "snow": "no"}, {"o": "Contact", "flows": 2, "trig": 2, "snow": "likely"}, {"o": "Product", "flows": 1, "trig": 3, "snow": "no"}, {"o": "Task", "flows": 2, "trig": 2, "snow": "no"}, {"o": "Asset Inventory", "flows": 2, "trig": 1, "snow": "no"}, {"o": "CPQ Quote", "flows": 3, "trig": 0, "snow": "no"}, {"o": "Quote Line Group", "flows": 2, "trig": 0, "snow": "no"}, {"o": "Stadium Event", "flows": 0, "trig": 2, "snow": "no"}, {"o": "Related Person Account", "flows": 2, "trig": 0, "snow": "no"}, {"o": "Product Consumption Schedule", "flows": 0, "trig": 2, "snow": "no"}, {"o": "Lead", "flows": 1, "trig": 1, "snow": "possibly"}, {"o": "Order", "flows": 0, "trig": 1, "snow": "no"}, {"o": "Approval", "flows": 1, "trig": 0, "snow": "no"}, {"o": "Contact Important Date", "flows": 1, "trig": 0, "snow": "no"}, {"o": "Campaign Member", "flows": 0, "trig": 1, "snow": "no"}, {"o": "Touchpoints", "flows": 1, "trig": 0, "snow": "no"}, {"o": "Account Conflict", "flows": 1, "trig": 0, "snow": "no"}, {"o": "Season", "flows": 0, "trig": 1, "snow": "no"}, {"o": "Ticket Purchase", "flows": 0, "trig": 1, "snow": "daily"}, {"o": "Campaign", "flows": 0, "trig": 1, "snow": "no"}, {"o": "Consumption Schedule", "flows": 0, "trig": 1, "snow": "no"}, {"o": "Order Product", "flows": 0, "trig": 1, "snow": "no"}, {"o": "Sign Schedule", "flows": 1, "trig": 0, "snow": "no"}, {"o": "Event", "flows": 0, "trig": 1, "snow": "no"}, {"o": "Stadium Event Inning", "flows": 0, "trig": 1, "snow": "no"}, {"o": "Form Submission", "flows": 1, "trig": 0, "snow": "no"}], "sfcomp": {"flows_total": 207, "flows_custom": 81, "flows_builtin": 126, "rec": 57, "sched": 9, "manual": 15, "trig_total": 119, "trig_custom": 34, "trig_pkg": 85}, "acct": ["[Account] Billing Contact Changes", "[Account] Create Account Team Record", "[Account] Create Task When Accounts are Merged", "[Account] Create or Update Birthday Contact Important Date Record", "[Account] Possible Broker Notification (New)", "{Account} Update Sales and Service Managers on Contract and Contract Asset", "[Person Account] - Stamp Last WC Contact Report Update"], "fiv": [{"n": "gcp_tdc", "src": "BigQuery", "st": "Active", "last": "44 min ago", "note": "MLB ticketing"}, {"n": "gcp_tdc_fast", "src": "BigQuery", "st": "Active", "last": "11 min ago", "note": "MLB ticketing, fast"}, {"n": "gcp_tdc_mid", "src": "BigQuery", "st": "Active", "last": "10 min ago", "note": "MLB ticketing, medium"}, {"n": "gcp_tdc_patron", "src": "BigQuery", "st": "Active", "last": "3 min ago", "note": "MLB patrons"}, {"n": "gcp_wheelhouse_fast", "src": "BigQuery", "st": "Active", "last": "9 hours ago", "note": "Wheelhouse, fast"}, {"n": "gcp_wheelhouse_purchase_considerations", "src": "BigQuery", "st": "Active", "last": "3 hours ago", "note": "Wheelhouse purchase considerations"}, {"n": "gcp_wheelhouse_voc", "src": "BigQuery", "st": "Active", "last": "1 hour ago", "note": "Wheelhouse surveys"}, {"n": "gcp_wheelhouse_wallet_transactions", "src": "BigQuery", "st": "Active", "last": "9 hours ago", "note": "Wheelhouse wallet"}, {"n": "salesforce_crm", "src": "Salesforce", "st": "Active", "last": "4 min ago", "note": "CRM"}, {"n": "fivetran_metadata", "src": "Fivetran", "st": "Active", "last": "9 hours ago", "note": "Sync logs"}, {"n": "concessions_mashgin", "src": "Custom code", "st": "Active", "last": "1 hour ago", "note": "Mashgin concessions"}, {"n": "parking_parkhub", "src": "Custom code", "st": "Active", "last": "5 hours ago", "note": "ParkHub parking"}, {"n": "mlb_gumbo", "src": "Custom code", "st": "Active", "last": "9 hours ago", "note": "MLB game feed"}, {"n": "gcp_wheelhouse", "src": "BigQuery", "st": "Paused", "last": "a year ago", "note": "Wheelhouse, main"}, {"n": "gcp_wheelhouse_mid", "src": "BigQuery", "st": "Paused", "last": "a year ago", "note": "Wheelhouse, medium"}, {"n": "fortress", "src": "Custom code", "st": "Paused", "last": "a year ago", "note": "Fortress"}, {"n": "demand_a.da_daily_fcst", "src": "Amazon S3", "st": "Paused", "last": "2 years ago", "note": "Demand forecast"}, {"n": "gcs_crowdiq.crowdflow", "src": "Google Cloud Storage", "st": "Paused", "last": "2 years ago", "note": "CrowdIQ crowd flow"}, {"n": "gcs_crowdiq.fans", "src": "Google Cloud Storage", "st": "Paused", "last": "2 years ago", "note": "CrowdIQ fans"}, {"n": "dynamics_crm", "src": "Dynamics 365", "st": "Paused", "last": "a year ago", "note": "Old CRM"}, {"n": "dynamics_kore_crm", "src": "Dynamics 365", "st": "Paused", "last": "a year ago", "note": "Old KORE CRM"}, {"n": "salesforce_sandbox", "src": "Salesforce", "st": "Paused", "last": "a year ago", "note": "CRM test copy"}, {"n": "snowflake_e15", "src": "Snowflake", "st": "Never synced", "last": "never", "note": "E15 attempt"}, {"n": "kore_crm", "src": "SQL Server", "st": "Never synced", "last": "never", "note": "Old KORE CRM"}]};
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const H = {ok:'var(--ok)',watch:'var(--watch)',risk:'var(--risk)',unk:'var(--unk)'};
+const SVGNS='http://www.w3.org/2000/svg';
+const el=(t,a={},p)=>{const e=document.createElementNS(SVGNS,t);for(const k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e};
+const tip=document.getElementById('tip');
+function bindTip(node,text){
+  node.addEventListener('mousemove',e=>{tip.textContent=text;tip.style.left=Math.min(e.clientX+12,innerWidth-290)+'px';tip.style.top=(e.clientY+12)+'px';tip.style.opacity=1});
+  node.addEventListener('mouseleave',()=>tip.style.opacity=0);
+  node.addEventListener('click',e=>{tip.textContent=text;tip.style.left=Math.min(e.clientX+12,innerWidth-290)+'px';tip.style.top=(e.clientY+12)+'px';tip.style.opacity=1;setTimeout(()=>tip.style.opacity=0,2500)});
+}
+
+/* Scoreboard */
+(function(){
+  const areas=['Data comes in','Data is processed','Inside Salesforce','Data goes out','Housekeeping'];
+  const sts=[['Running',['Running']],['Broken',['Broken']],['Off',['Turned off','Never worked']],['Unknown',['Unknown']]];
+  let h='<thead><tr><th>Area</th>'+sts.map(s=>'<th>'+s[0]+'</th>').join('')+'<th>Total</th></tr></thead><tbody>';
+  const tot=[0,0,0,0];
+  areas.forEach(a=>{
+    const rs=D.rows.filter(r=>r.area===a); h+='<tr><td>'+a+'</td>';
+    sts.forEach((s,i)=>{const n=rs.filter(r=>s[1].includes(r.status)).length;tot[i]+=n;h+='<td class="'+(n===0?'z':(s[0]==='Broken'?'b':''))+'">'+n+'</td>'});
+    h+='<td class="t">'+rs.length+'</td></tr>';
+  });
+  h+='<tr class="tot"><td>Total</td>'+tot.map(n=>'<td>'+n+'</td>').join('')+'<td class="t">'+D.rows.length+'</td></tr></tbody>';
+  document.getElementById('board').innerHTML=h;
+})();
+
+/* Sankey */
+(function(){
+  const svg=document.getElementById('sankey'); const W=1080,Hh=520; svg.setAttribute('viewBox',`0 0 ${W} ${Hh}`); svg.style.minWidth='880px'; svg.style.width='100%';
+  const N=[
+    ['mlb',0,'MLB ticketing + fan data','ok'],['sdk',0,'Concessions, parking, game feed','watch'],['sfcrm',0,'Salesforce CRM','ok'],['partner',0,'Levy + Eventellect','risk'],['webull',0,'Webull clean room','watch'],['apollo',0,'Apollo lead lists','watch'],['oldsql',0,'Old SQL Server + KORE','unk'],
+    ['fivetran',1,'Fivetran','ok'],['jobs',1,'Snowflake scheduled jobs','risk'],['app',1,'B2B import app','watch'],
+    ['coalesce',2,'Coalesce models','watch'],['procs',2,'Stored procedures','risk'],
+    ['tableau',3,'Tableau Cloud','watch'],['sf',3,'Salesforce','risk'],['reports',3,'Email + AI reports','watch'],
+    ['stellar',4,'StellarAlgo','unk'],['mkt',4,'Marketing sync','unk']];
+  const L=[['mlb','fivetran',8,'ok','8 BigQuery connectors'],['sdk','fivetran',3,'watch','3 custom-code connectors'],['sfcrm','fivetran',1.5,'ok','Salesforce sync every few minutes'],
+    ['partner','jobs',7,'risk','7 jobs copy partner shares, all in the test area'],['webull','jobs',3,'watch','3 clean room jobs'],['apollo','app',1.5,'watch','Manual uploads'],
+    ['fivetran','coalesce',10,'watch','Coalesce refreshes on 15-minute, 30-minute, and 2-hour timers, not when Fivetran finishes'],['fivetran','procs',2,'watch','Account matching, survey AI'],['jobs','procs',10,'risk','Jobs call procedures on fixed timers'],['app','procs',1.5,'watch','B2B import procedures'],
+    ['coalesce','tableau',10,'watch','78 dashboards query live; about 34 workbooks refresh extracts on their own timers'],['mlb','tableau',2,'watch','Marketing and survey dashboards read BigQuery directly, skipping Snowflake'],['oldsql','tableau',2,'unk','Frozen extracts from 2024 and 2025, a few still viewed'],['procs','tableau',2,'watch','Report tables'],['procs','sf',5,'risk','Hand-built writes to Salesforce'],['procs','reports',6,'watch','Report emails and AI summaries'],
+    ['sf','stellar',1.5,'unk','Nightly export'],['sf','mkt',1.5,'unk','Marketing sync']];
+  const nodes={}; N.forEach(([id,c,l,h])=>nodes[id]={id,c,l,hl:h,inV:0,outV:0,ins:[],outs:[]});
+  const links=L.map(([s,t,v,h,d])=>{const o={s:nodes[s],t:nodes[t],v,h,d};o.s.outs.push(o);o.t.ins.push(o);o.s.outV+=v;o.t.inV+=v;return o});
+  Object.values(nodes).forEach(n=>n.v=Math.max(n.inV,n.outV));
+  const cols=[0,1,2,3,4].map(c=>Object.values(nodes).filter(n=>n.c===c));
+  const top=30,bottom=20,gap=26,nw=14; const colX=[250,450,640,820,930];
+  const k=Math.min(...cols.map(cn=>(Hh-top-bottom-gap*(cn.length-1))/cn.reduce((a,n)=>a+n.v,0)));
+  cols.forEach((cn,ci)=>{const tot=cn.reduce((a,n)=>a+n.v*k,0)+gap*(cn.length-1);let y=top+(Hh-top-bottom-tot)/2;cn.forEach(n=>{n.x=colX[ci];n.y=y;n.h=n.v*k;y+=n.h+gap})});
+  Object.values(nodes).forEach(n=>{let so=0;n.outs.sort((a,b)=>a.t.y-b.t.y).forEach(l=>{l.sy=n.y+so;so+=l.v*k});let ti=0;n.ins.sort((a,b)=>a.s.y-b.s.y).forEach(l=>{l.ty=n.y+ti;ti+=l.v*k})});
+  ['Sources','Loaded by','Built by','Sent to','Then to'].forEach((t,i)=>el('text',{x:i===0?colX[0]+nw:(i===4?colX[4]:colX[i]+nw/2),y:16,'text-anchor':i===0?'end':(i===4?'start':'middle'),class:'grp'},svg).textContent=t);
+  links.forEach(l=>{const x0=l.s.x+nw,x1=l.t.x,w=l.v*k,mx=(x0+x1)/2;
+    const p=el('path',{d:`M${x0},${l.sy} C${mx},${l.sy} ${mx},${l.ty} ${x1},${l.ty} L${x1},${l.ty+w} C${mx},${l.ty+w} ${mx},${l.sy+w} ${x0},${l.sy+w} Z`,style:'fill:'+H[l.h],opacity:.42},svg);
+    p.style.cursor='pointer'; bindTip(p,l.s.l+' → '+l.t.l+': '+l.d);
+    p.addEventListener('mouseenter',()=>p.setAttribute('opacity',.75));p.addEventListener('mouseleave',()=>p.setAttribute('opacity',.42));});
+  Object.values(nodes).forEach(n=>{el('rect',{x:n.x,y:n.y,width:nw,height:Math.max(n.h,4),rx:3,style:'fill:'+H[n.hl]},svg);
+    const left=n.c===0, right=false; const tx=left?n.x-8:n.x+nw+8;
+    const t=el('text',{x:tx,y:n.y+n.h/2,'dominant-baseline':'central','text-anchor':(left||right)?'end':'start',class:'lbl'},svg); t.textContent=n.l;
+    if(!left&&n.c!==4){const bb=t.getBBox();el('rect',{x:bb.x-3,y:bb.y-1,width:bb.width+6,height:bb.height+2,rx:3,fill:'var(--surface)',opacity:.85},svg);svg.appendChild(t)}
+  });
+})();
+
+/* Failures timeline */
+(function(){
+  const svg=document.getElementById('fails'); const W=1000,top=36,rowH=34; const now=new Date('2026-11-05');
+  const F=[['Data quality checks (DEV, QA, live)','2025-12-13','risk','Stopped after errors. Off in all three areas.'],
+    ['Levy premium seating load','2026-03-01','risk','Stopped after errors.'],
+    ['Webull flags, old test copy','2026-04-23','risk','Stopped after errors. Safe to delete.'],
+    ['Sales call activity + email analytics','2026-06-03','risk','Lost their schedules. Can never run.'],
+    ['Sales AI jobs (5)','2026-06-06','unk','Turned off by a person.'],
+    ['Fan survey AI jobs (4) + report card','2026-08-15','unk','Turned off by a person. Possibly offseason.'],
+    ['Lead-list cleanup','2026-10-02','risk','Stopped after errors.']];
+  const P=[['Webull flags (live) failed, later resumed','2026-09-12'],['Tableau login expired, finance dashboard down','2026-11-03']];
+  const start=new Date('2025-12-01'),end=new Date('2026-11-20'); const x0=290,x1=W-30; const X=d=>x0+(new Date(d)-start)/(end-start)*(x1-x0);
+  const Hh=top+F.length*rowH+P.length*rowH+30; svg.setAttribute('viewBox',`0 0 ${W} ${Hh}`); svg.style.minWidth='820px'; svg.style.width='100%';
+  for(let m=0;m<12;m++){const d=new Date(2025,11+m,1);const x=X(d);el('line',{x1:x,x2:x,y1:top-12,y2:Hh-24,stroke:'var(--line)'},svg);el('text',{x:x+3,y:top-16,class:'ax'},svg).textContent=d.toLocaleString('en-US',{month:'short'})+(d.getMonth()===0||m===0?' '+d.getFullYear():'')}
+  const nx=X(now); el('line',{x1:nx,x2:nx,y1:top-12,y2:Hh-24,stroke:'var(--ink)','stroke-width':1.5,'stroke-dasharray':'4 3'},svg); el('text',{x:nx-4,y:Hh-8,'text-anchor':'end',class:'ax'},svg).textContent='Today, Nov 5';
+  F.forEach((f,i)=>{const y=top+i*rowH;const days=Math.round((now-new Date(f[1]))/864e5);
+    el('text',{x:x0-12,y:y+12,'text-anchor':'end',class:'lbl'},svg).textContent=f[0];
+    const r=el('rect',{x:X(f[1]),y:y+2,width:nx-X(f[1]),height:20,rx:4,style:'fill:'+H[f[2]],opacity:f[2]==='risk'?.85:.55},svg); bindTip(r,f[0]+': since '+new Date(f[1]).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})+'. '+f[3]);
+    const lab=el('text',{x:X(f[1])+8,y:y+16,style:'fill:#fff;font-size:12px;font-weight:600'},svg); lab.textContent=days+' days'; if(nx-X(f[1])<70){lab.setAttribute('x',X(f[1])-6);lab.setAttribute('text-anchor','end');lab.setAttribute('style','fill:var(--muted);font-size:12px;font-weight:600')}});
+  P.forEach((p,i)=>{const y=top+(F.length+i)*rowH;el('text',{x:x0-12,y:y+12,'text-anchor':'end',class:'lbl'},svg).textContent=p[0];
+    const c=el('circle',{cx:X(p[1]),cy:y+12,r:7,style:'fill:var(--watch)'},svg); bindTip(c,p[0]+' ('+new Date(p[1]).toLocaleDateString('en-US',{month:'short',day:'numeric'})+')')});
+})();
+
+/* Day clock */
+(function(){
+  const svg=document.getElementById('day'); const W=1000,x0=300,x1=W-20,top=34,rowH=26; const X=h=>x0+h/24*(x1-x0);
+  const hourly=m=>Array.from({length:24},(_,i)=>i+m/60);
+  const G=[['Snowflake jobs',[
+      ['Webull clean room results (2 jobs)','band',5,'watch','Every 5 minutes, about 576 runs a day combined'],
+      ['Update live Salesforce accounts',hourly(5),'risk','Hourly at :05. Sets off 10 Salesforce automations each time'],
+      ['AI spending check',hourly(0),'ok','Hourly'],
+      ['Eventellect partner data',[1,3,5,7,9,11,13,15,17,19,21,23],'risk','Every 2 hours, from the test area'],
+      ['Levy + retail data from E15 (4 jobs)',[7,19],'risk','7 AM and 7 PM, from the test area'],
+      ['Ticket purchases to Salesforce',[0],'watch','Midnight'],
+      ['Webull analysis, then flags to Salesforce',[4,6],'watch','4 AM analysis, 6 AM push'],
+      ['Spending email',[7],'ok','7 AM'],
+      ['Eventellect forecast, then ticket forecast',[10.5,10.6],'watch','10:30 AM and 10:36 AM, six minutes apart with no link between them'],
+      ['Survey AI search on, then off',[11,17],'ok','On at 11 AM, off at 5 PM'],
+      ['AI features switched back on',[19.08],'ok','7:05 PM']]],
+    ['Coalesce',[
+      ['Live refresh every 15 minutes','band',15,'watch','Every 15 minutes, all day (96 runs)'],
+      ['Live refresh every 30 minutes',Array.from({length:48},(_,i)=>i/2),'watch','Every 30 minutes, overlapping the 15-minute job'],
+      ['Live refresh every 2 hours',[1,3,5,7,9,11,13,15,17,19,21,23],'watch','Every 2 hours on odd hours, overlapping both jobs above'],
+      ['Live daily jobs (4)',[10,17.67,19.67,20.33],'ok','Post-game 10 AM, CP sales snapshot 5:40 PM, daily 7:40 PM, asset inventory 8:20 PM'],
+      ['QA copies (7 running)',[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,17.67,18,19,19.42,20,20.33,21,22,22.33,23],'risk','Hourly and 2-hour refreshes plus daily jobs, including two forecast jobs paused in live'],
+      ['DEV copies (3 running)',[10,17.67,21.33],'risk','10 AM, 5:40 PM (failed Nov 4), 9:20 PM']]],
+    ['Tableau',[
+      ['Workbook extract refreshes (about 34)',[8.18,9.08,11.45,11.55,12.03,12.2],'watch','Latest refresh seen today for each workbook. Most landed between 11 AM and 12:15 PM, minutes after Coalesce refreshes started. Full schedules need admin access']]],
+    ['Salesforce',[
+      ['Salesforce sync to Fivetran','band',4,'ok','Every few minutes (observed)'],
+      ['Rollup calculations (about 17)',hourly(0).concat([2]),'ok','Hourly, plus 2 AM'],
+      ['Scheduled Flows (9)',[1.25,3,8.5,15.25,16.75,20,20.02,20.25,21],'watch','Cleanup and field updates at their own times'],
+      ['Member activity batch',[2],'unk','2 AM, purpose unknown'],
+      ['StellarAlgo export',[20,20.53],'unk','About 8 PM'],
+      ['Scheduled report emails (about 37)',[9,17],'unk','About 9 AM and 5 PM']]]];
+  let rows=0;G.forEach(g=>rows+=g[1].length+1.4); const Hh=top+rows*rowH+20; svg.setAttribute('viewBox',`0 0 ${W} ${Hh}`); svg.style.minWidth='820px'; svg.style.width='100%';
+  for(let h=0;h<=24;h+=3){const x=X(h);el('line',{x1:x,x2:x,y1:top-10,y2:Hh-12,stroke:'var(--line)'},svg);const lab=h===0||h===24?'12 AM':(h===12?'12 PM':(h<12?h+' AM':(h-12)+' PM'));el('text',{x,y:top-16,'text-anchor':'middle',class:'ax'},svg).textContent=lab}
+  let y=top;
+  G.forEach(g=>{el('text',{x:20,y:y+16,class:'grp'},svg).textContent=g[0]; y+=rowH*1.2;
+    g[1].forEach(r=>{el('text',{x:x0-12,y:y+12,'text-anchor':'end',class:'lbl'},svg).textContent=r[0];
+      el('line',{x1:x0,x2:x1,y1:y+8,y2:y+8,stroke:'var(--line)','stroke-dasharray':'2 4'},svg);
+      if(r[1]==='band'){const b=el('rect',{x:x0,y:y+2,width:x1-x0,height:12,rx:3,style:'fill:'+H[r[3]],opacity:.4},svg);bindTip(b,r[0]+': '+r[4])}
+      else r[1].forEach(h=>{const c=el('circle',{cx:X(h),cy:y+8,r:5.5,style:'fill:'+H[r[2]]},svg);bindTip(c,r[0]+': '+r[3])});
+      y+=rowH});
+    y+=rowH*0.2});
+})();
+
+/* bars helper */
+function bars(id,items,max){const box=document.getElementById(id);max=max||Math.max(...items.map(i=>i.segs.reduce((a,s)=>a+s[0],0)));
+  box.innerHTML=items.map(i=>{const tot=i.segs.reduce((a,s)=>a+s[0],0);return `<div class="hbar"><div class="lab">${i.l}</div><div class="track" role="img" aria-label="${i.l}: ${i.v||tot}">${i.segs.map(s=>`<div class="seg ${s[2]||''}" style="width:${s[0]/max*100}%;background:${s[1]}" title="${s[3]||''}"></div>`).join('')}</div><div class="val">${i.v||tot}</div></div>`}).join('')}
+bars('envbars',[{l:'Test area (DEV)',segs:[[8,'var(--risk)','','Feeds live data'],[13,'var(--unk)','','Test or AI work']]},{l:'Live area (PROD)',segs:[[16,'var(--ok)']]},{l:'QA',segs:[[1,'var(--unk)']]},{l:'Governance',segs:[[1,'var(--unk)']]}]);
+bars('ownbars',[{l:'ACCOUNTADMIN',segs:[[28,'var(--risk)']]},{l:'Coalesce role',segs:[[6,'var(--watch)']]},{l:'Developer roles',segs:[[5,'var(--ok)']]}]);
+bars('busy',[
+  {l:'Update live Salesforce accounts',segs:[[720,'var(--risk)']],v:'720'},
+  {l:'Eventellect partner data',segs:[[360,'var(--risk)']],v:'360'},
+  {l:'Levy + retail from E15 (each of 4)',segs:[[60,'var(--risk)']],v:'60'},
+  {l:'Daily jobs (Webull, forecasts, ticket purchases, spending email)',segs:[[30,'var(--watch)']],v:'30 each'}],720);
+
+/* Salesforce */
+(function(){
+  const col={hourly:'var(--risk)',daily:'var(--risk)',likely:'var(--watch)',possibly:'var(--watch)',no:'var(--unk)'};
+  const lab={hourly:'set off hourly by Snowflake',daily:'set off daily by Snowflake',likely:'likely set off by Snowflake',possibly:'possibly set off by the B2B import',no:'not touched by Snowflake'};
+  const top=D.sfobj.slice(0,12);
+  bars('sfobj',top.map(o=>({l:o.o,segs:[[o.flows,col[o.snow],'',o.flows+' Flows, '+lab[o.snow]],[o.trig,col[o.snow],'lite',o.trig+' code triggers']],v:(o.flows+o.trig)})));
+  const c=D.sfcomp;
+  bars('sfcomp',[{l:'Flows ('+c.flows_total+')',segs:[[c.rec,'var(--ink)','','On record save'],[c.sched,'var(--muted)','','On a schedule'],[c.manual,'var(--faint)','','Started by a person'],[c.flows_builtin,'var(--faint)','bi','Built-in templates']],v:c.flows_custom+' custom'},
+    {l:'Code triggers ('+c.trig_total+')',segs:[[c.trig_custom,'var(--ink)','','Custom'],[c.trig_pkg,'var(--faint)','bi','From installed apps']],v:c.trig_custom+' custom'}],c.flows_total);
+  document.getElementById('sfcomp').insertAdjacentHTML('beforeend','<p class="note">Solid: custom (on record save, then scheduled, then started by a person). Striped: came with Salesforce or an installed app. On the left chart, the lighter part of each bar is code triggers.</p>');
+  document.getElementById('acct').innerHTML=D.acct.map(a=>'<li>'+a.replace(/^[\[{]([^\]}]+)[\]}]\s*-?\s*/,'')+'</li>').join('');
+})();
+
+/* Tableau */
+bars('tabtype',[{l:'Snowflake, live',segs:[[78,'var(--watch)']]},{l:'Old SQL Server + KORE',segs:[[21,'var(--unk)']]},{l:'Google BigQuery',segs:[[10,'var(--watch)']]},{l:'Tableau system data',segs:[[9,'var(--ok)']]},{l:'Uploaded files',segs:[[8,'var(--unk)']]},{l:'Snowflake, extract',segs:[[2,'var(--risk)','','One is seven months stale']]}],78);
+bars('tablogin',[{l:'Person A',segs:[[42,'var(--risk)']]},{l:'Person B',segs:[[16,'var(--risk)']]},{l:'Person C',segs:[[15,'var(--risk)']]},{l:'Person D',segs:[[5,'var(--risk)']]},{l:'Two others',segs:[[2,'var(--risk)']]}],42);
+bars('tabuse',[{l:'Workbooks viewed last month',segs:[[79,'var(--ok)'],[49,'var(--unk-bg)']],v:'79 of 128'},{l:'Published data sources viewed in 3 months',segs:[[32,'var(--ok)'],[96,'var(--unk-bg)']],v:'32 of 128'},{l:'Published data sources unused for a year',segs:[[42,'var(--unk)'],[86,'var(--unk-bg)']],v:'42 of 128'}],128);
+
+/* Fivetran tiles */
+document.getElementById('tiles').innerHTML=D.fiv.map(f=>{const cls=f.st==='Active'?(f.src==='Custom code'?'watch':'ok'):(f.st==='Paused'?'unk':'risk');
+  return `<div class="tile ${cls}"><div class="n">${f.note}</div><div class="m">${f.src}, ${f.st==='Active'?'last synced '+f.last:(f.st==='Paused'?'paused, last ran '+f.last:'never synced')}</div></div>`}).join('');
+
+/* Waffle */
+(function(){const parts=[[800,'var(--line)','Snowflake and clean room app'],[34,'var(--ok)','In active use'],[30,'var(--watch)','Not used in 30 days, review'],[14,'var(--risk)','Test, debug, or backup copies']];
+  document.getElementById('waffle').innerHTML=parts.map(p=>Array(p[0]).fill(`<i style="background:${p[1]}"></i>`).join('')).join('');
+  document.getElementById('wlegend').innerHTML=parts.map(p=>`<span><i class="sw" style="background:${p[1]};border:1px solid var(--line)"></i>${p[2]} (${p[0]})</span>`).join('');})();
+
+/* Phases */
+(function(){const P=[['Days','No new tools',[['Turn on failure alerts','Every Snowflake job reports failures to one channel.'],['Restart data quality checks','Fix the error from December and turn them back on.'],['Stop using the top admin role','Move jobs to a limited service account.'],['Clear out dead jobs','Delete broken copies, paused connectors, and test procedures.'],['Swap personal logins for service accounts','Coalesce schedules and Tableau connections, like Fivetran already has.'],['Retire unused Tableau sources','42 unused for a year, plus a seven-month-stale extract to fix.'],['Stop scheduled refreshes in QA and DEV','Run test areas only when someone is testing a change.']]],
+  ['Weeks','Process fixes',[['Move live work out of DEV','Promote Salesforce updates and partner loads through QA to PROD.'],['One Salesforce login','Consolidate the stored credentials into one integration user.'],['Check Account automations','Confirm the 7 Account Flows only run when something meaningful changes.']]],
+  ['Months','Platform decisions',[['Add an orchestrator','Run Fivetran, Coalesce, jobs, and Tableau refreshes in order.'],['One path into Salesforce','Replace hand-built writes with a reverse ETL tool.'],['Revisit Coalesce vs. dbt','Decide once the rest is stable.']]]];
+  document.getElementById('phases').innerHTML=P.map(p=>`<div class="panel phase"><h3>${p[0]} <small>${p[1]}</small></h3>${p[2].map(f=>`<div class="fix"><b>${f[0]}</b><span>${f[1]}</span></div>`).join('')}</div>`).join('');})();
+
+/* Table */
+(function(){const cls={'Running':'ok','Broken':'risk','Turned off':'unk','Never worked':'unk','Unknown':'watch'};
+  const fa=document.getElementById('fa'),fs=document.getElementById('fs'),q=document.getElementById('q'),tb=document.getElementById('tb'),cnt=document.getElementById('cnt');
+  [...new Set(D.rows.map(r=>r.area))].forEach(a=>fa.insertAdjacentHTML('beforeend',`<option>${a}</option>`));
+  [...new Set(D.rows.map(r=>r.status))].forEach(a=>fs.insertAdjacentHTML('beforeend',`<option>${a}</option>`));
+  const esc=s=>String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  function draw(){const t=q.value.toLowerCase();const rs=D.rows.filter(r=>(!fa.value||r.area===fa.value)&&(!fs.value||r.status===fs.value)&&(!t||Object.values(r).join(' ').toLowerCase().includes(t)));
+    cnt.textContent=rs.length+' of '+D.rows.length+' processes';
+    tb.innerHTML=rs.map(r=>`<tr><td class="w">${esc(r.what)}</td><td>${esc(r.area)}</td><td>${esc(r.tool)}</td><td>${esc(r.often)}</td><td><span class="pill ${cls[r.status]}">${esc(r.status)}</span></td><td>${esc(r.problem)||'<span style="color:var(--faint)">None found</span>'}</td></tr>`).join('')}
+  [q,fa,fs].forEach(e=>e.addEventListener('input',draw)); draw();})();
+</script>
+</body>
+</html>
