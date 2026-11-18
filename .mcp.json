@@ -1,0 +1,27 @@
+{
+  "mcpServers": {
+    "coalesce-transform": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "https://app.coalescesoftware.io/api/v1/mcp",
+        "--header",
+        "Authorization:${COALESCE_AUTH}"
+      ],
+      "env": {
+        "NODE_USE_ENV_PROXY": "1"
+      }
+    },
+    "fivetran": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/fivetran/fivetran-mcp",
+        "fivetran-mcp"
+      ]
+    }
+  }
+}
