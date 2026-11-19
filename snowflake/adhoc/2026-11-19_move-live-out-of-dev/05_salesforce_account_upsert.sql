@@ -13,7 +13,8 @@
 -- CHANGES: the log goes to a new PROD table, and errors are raised instead of returned as text.
 --   Salesforce reads and writes are identical.
 -- BEFORE RUNNING:
---   * Create the log table (below). Copy the history across if anyone uses it (needs DEV access).
+--   * Create the log table (below). The DEV log had no readers in the 90 days to Nov 19, 2026 (ACCESS_HISTORY),
+--     so copying its history across is optional.
 --   * Same secret check as script 04.
 --   * This procedure must never run twice in the same hour. Two copies would push every changed account twice and
 --     fire the triggers twice. Use the switch-over steps at the bottom exactly as written.

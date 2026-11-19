@@ -25,6 +25,11 @@
 -- One generic PROD procedure that loads share → PROD directly, in a single atomic statement (INSERT OVERWRITE),
 -- so PROD is never empty halfway through a load. There's no DEV or QA copy: DEV and QA will get these tables from the
 -- PROD clone (DEV/QA workflow item). QA's LOAD copies go stale in the meantime. Nobody reads QA (query H, Nov 18).
+-- Readers checked in ACCESS_HISTORY (90 days to Nov 19, 2026):
+--   * DEV LOAD copies: read only by these load procedures themselves. Nothing else depends on them.
+--   * QA LOAD copies: read about 12x/day by the QA Coalesce jobs (STG_ODS_E15_*/EVENTELLECT_*_10_INGEST nodes),
+--     running as a personal login with TBRDP_DW_DEV_COALESCE_ROLE. After the move those QA tables freeze at the
+--     last load. No errors, just old data in QA, until QA is fed from the PROD clone.
 -- PROD table names are unchanged, so no Coalesce change is needed.
 -- Same schedules as today.
 
